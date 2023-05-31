@@ -1,6 +1,6 @@
 import psycopg2
-from flask import Flask,jsonify
-from flask_restx import Api, Resource, fields
+from flask import Flask,jsonify,send_from_directory
+from flask_restx import Api, Resource
 from flask_swagger_ui import get_swaggerui_blueprint
 
 app = Flask(__name__)
@@ -16,39 +16,48 @@ def fetch_data_from_database(id,name ):
     )
     cursor = conn.cursor()
 
-    cursor.execute('SELECT * FROM "User" where (id =%s) or (name=%s)',(id,name))
+    #cursor.execute('SELECT * FROM "User" where (id =%s) or (name=%s)',(id,name))
+    cursor.execute('SELECT * FROM "User" u inner join "Post" p on p.author_id =u.id where (id =%s) or (name=%s)',(id,name))
     data = cursor.fetchall()
 
     conn.close()
 
     return data
 
-data_model = api.model('Data', {
-    'data': fields.List(fields.String)[0]
-    
-})
-
-
 class DataResource(Resource):
     @api.doc(responses={200: 'Data fetched successfully'}, description='Fetches data from PostgreSQL and returns it')
-    @api.marshal_with(data_model)
     def get(self,id,name):
-        """Fetches data from PostgreSQL and returns it"""
-        data = fetch_data_from_database(id,str(name))
-        return {'data': data}
+        try:
+            """Fetches data from PostgreSQL and returns it"""
+            data = fetch_data_from_database(id,str(name))
+            
+            response = {
+                'id': data[0][0],
+                'name':data[0][1],
+                'age': data[0][2]
+            }
+            return jsonify(response)
+        except IndexError:
+            return jsonify({
+                "Error" : "There is no user with this data has Posted yet !!!"
+            })
 
 api.add_resource(DataResource, '/data/<int:id>/<string:name>')
 
-@app.route("/swagger.json")
-def get_swagger():
-    return api.__schema__
 
-swagger_ui_blueprint = get_swaggerui_blueprint(
-    "/swagger",
-    "/swagger.json",
-    config={"app_name": "Flask Swagger API"}
+
+SWAGGER_URL = '/api/swagger'
+API_URL = '\static\swagger.json'
+
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,  
+    API_URL,
+    config={
+        'app_name': "Test application"
+    }
 )
-app.register_blueprint(swagger_ui_blueprint, url_prefix="/swagger-ui")
+
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 if __name__ == "__main__":
     app.run(debug=True)
