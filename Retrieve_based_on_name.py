@@ -1,5 +1,5 @@
 import psycopg2
-from flask import Flask
+from flask import Flask,jsonify
 from flask_restx import Api, Resource, fields
 from flask_swagger_ui import get_swaggerui_blueprint
 
@@ -24,7 +24,8 @@ def fetch_data_from_database(id,name ):
     return data
 
 data_model = api.model('Data', {
-    'data': fields.List(fields.String)
+    'data': fields.List(fields.String)[0]
+    
 })
 
 
